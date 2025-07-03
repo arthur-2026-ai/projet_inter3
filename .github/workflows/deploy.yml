@@ -1,0 +1,41 @@
+name: Deploy Node.js Docker App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repo
+      uses: actions/checkout@v3
+
+    - name: Build Docker image
+      run: docker build -t projet_inter3 .
+
+    - name: Save Docker image to tar
+      run: docker save projet_inter3 -o projet_inter3.tar
+
+    - name: Copy Docker image to server
+      uses: appleboy/scp-action@v0.1.4
+      with:
+        host: 16.171.169.114
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        source: "projet_inter3.tar"
+        target: "~/"
+
+    - name: Load image and run container on server
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: 16.171.169.114
+        username: ubuntu
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          docker load -i ~/projet_inter3.tar
+          docker stop projet_inter3 || true
+          docker rm projet_inter3 || true
+          docker run -d --name projet_inter3 -p 3000:3000 projet_inter3
